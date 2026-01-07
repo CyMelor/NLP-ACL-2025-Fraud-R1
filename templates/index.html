@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>欺诈对话检测系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .input-section {
+            margin-bottom: 30px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 5px;
+            min-height: 150px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+        }
+        
+        .fraud {
+            background-color: #ffebee;
+            border: 1px solid #f44336;
+            color: #c62828;
+        }
+        
+        .normal {
+            background-color: #e8f5e9;
+            border: 1px solid #4caf50;
+            color: #1b5e20;
+        }
+        
+        .result-content {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .confidence {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+        
+        .info-section {
+            margin-top: 40px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .info-section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        
+        .info-section ul {
+            list-style-position: inside;
+            margin-left: 20px;
+        }
+        
+        .info-section li {
+            margin-bottom: 10px;
+        }
+        
+        .training-info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e3f2fd;
+            border-radius: 5px;
+        }
+        
+        .training-info h3 {
+            color: #1565c0;
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px;
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>欺诈对话检测系统</h1>
+        
+        <div class="input-section">
+            <label for="dialogue">请输入对话文本：</label>
+            <textarea id="dialogue" name="dialogue" placeholder="例如：您好，我是XX银行客服，您的账户存在异常，需要进行验证..."></textarea>
+            <br>
+            <button id="predict-btn" onclick="predict()">检测</button>
+        </div>
+        
+        <div class="input-section">
+            <label for="model-file">导入自定义模型：</label>
+            <input type="file" id="model-file" name="model_file" accept=".pt" style="margin-bottom: 10px;">
+            <br>
+            <button id="upload-btn" onclick="uploadModel()">上传模型</button>
+            <div id="model-status" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+        </div>
+        
+        <div class="result-section" id="result">
+            <div class="loading">请输入对话文本并点击检测按钮</div>
+        </div>
+        
+        <div class="training-info">
+            <h3>模型训练信息</h3>
+            <ul>
+                <li>预训练模型：BERT-Base-Chinese</li>
+                <li>训练轮次：3 epochs</li>
+                <li>批次大小：4</li>
+                <li>学习率：2e-5</li>
+            </ul>
+        </div>
+        
+        <div class="info-section">
+            <h2>系统说明</h2>
+            <p>本系统基于BERT模型，用于检测欺诈性对话文本。系统可以识别各种类型的欺诈对话，如：</p>
+            <ul>
+                <li>银行诈骗：冒充银行客服要求验证账户信息</li>
+                <li>电信诈骗：以各种理由要求转账汇款</li>
+                <li>网络诈骗：虚假中奖、兼职刷单等</li>
+                <li>虚假销售：夸大产品功效、虚假宣传等</li>
+            </ul>
+            <p>系统会给出预测结果（欺诈/正常）以及相应的置信度。</p>
+        </div>
+    </div>
+    
+    <script>
+        function predict() {
+            const dialogue = document.getElementById('dialogue').value;
+            const resultDiv = document.getElementById('result');
+            const predictBtn = document.getElementById('predict-btn');
+            
+            if (!dialogue.trim()) {
+                alert('请输入对话文本');
+                return;
+            }
+            
+            // 显示加载状态
+            resultDiv.innerHTML = '<div class="loading">正在检测中...</div>';
+            predictBtn.disabled = true;
+            
+            // 发送请求
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'dialogue=' + encodeURIComponent(dialogue)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 显示结果
+                if (data.error) {
+                    resultDiv.innerHTML = '<div class="result-content">错误：' + data.error + '</div>';
+                    resultDiv.className = 'result-section';
+                } else {
+                    const isFraud = data.prediction === '欺诈';
+                    const confidence = (data.confidence * 100).toFixed(2);
+                    
+                    resultDiv.innerHTML = `
+                        <div class="result-content">
+                            <strong>检测结果：</strong>${data.prediction}
+                        </div>
+                        <div class="confidence">
+                            置信度：${confidence}%
+                        </div>
+                    `;
+                    
+                    resultDiv.className = 'result-section ' + (isFraud ? 'fraud' : 'normal');
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<div class="result-content">错误：' + error.message + '</div>';
+                resultDiv.className = 'result-section';
+            })
+            .finally(() => {
+                predictBtn.disabled = false;
+            });
+        }
+        
+        // 添加回车键支持
+        document.getElementById('dialogue').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                predict();
+            }
+        });
+        
+        // 模型上传功能
+        function uploadModel() {
+            const modelFile = document.getElementById('model-file').files[0];
+            const uploadBtn = document.getElementById('upload-btn');
+            const modelStatus = document.getElementById('model-status');
+            
+            if (!modelFile) {
+                alert('请选择要上传的模型文件');
+                return;
+            }
+            
+            // 检查文件格式
+            if (!modelFile.name.endsWith('.pt')) {
+                alert('请上传.pt格式的模型文件');
+                return;
+            }
+            
+            // 显示加载状态
+            modelStatus.innerHTML = '<div class="loading">正在上传模型...</div>';
+            uploadBtn.disabled = true;
+            
+            // 创建FormData对象
+            const formData = new FormData();
+            formData.append('model_file', modelFile);
+            
+            // 发送请求
+            fetch('/upload_model', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 显示结果
+                if (data.error) {
+                    modelStatus.innerHTML = '<span style="color: #f44336;">错误：' + data.error + '</span>';
+                } else {
+                    modelStatus.innerHTML = '<span style="color: #4caf50;">成功：' + data.success + '</span>';
+                }
+            })
+            .catch(error => {
+                modelStatus.innerHTML = '<span style="color: #f44336;">错误：' + error.message + '</span>';
+            })
+            .finally(() => {
+                uploadBtn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>
